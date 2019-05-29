@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget {
         print(
             "Device ${dev.device.name} | MAC ${dev.device.id.id} | Type ${dev.device.type} | Rssi ${dev.rssi}");
 
-        if(dev.device.id.id == "24:6F:28:D4:63:0A"){
+        if(dev.device.id.id == "24:6F:28:D4:63:0A" || dev.device.id.id == "643F3BFC-9C79-F940-8DB1-4CEF3381E7C1"){
           scanSubscription.cancel();
           flutterBlue.connect(dev.device).listen((s) {
             if(s == BluetoothDeviceState.connected) {
