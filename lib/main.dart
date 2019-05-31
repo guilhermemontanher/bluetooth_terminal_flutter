@@ -53,17 +53,18 @@ class _MyHomePageState extends State<MyHomePage> {
   void _scanBLEDevices() {
     FlutterBlue flutterBlue = FlutterBlue.instance;
     scanSubscription = flutterBlue
-        .scan(
-      scanMode: ScanMode.balanced,
-      timeout: Duration(seconds: 5),
-    )
+        .scan(scanMode: ScanMode.balanced, timeout: Duration(seconds: 10))
         .listen((scanResult) {
       bool achou = false;
       var i;
       for (i = 0; i < devices.length; i++) {
         if (devices[i].device.id.id == scanResult.device.id.id) {
+          /* print("device: " +
+              devices[i].device.name +
+              ":" +
+              devices[i].device.id.id);*/
           achou = true;
-          break;
+          break; // 83246F61-BB41-3E47-15BE-1B5184C7AFB8
         }
       }
 
@@ -168,20 +169,31 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   _connectBLE(BluetoothDevice device) {
+    print("**********************");
     setState(() {
       _connecting = true;
       _msgStatus = "Conectando...";
     });
-    scanSubscription.cancel();
-    FlutterBlue.instance.connect(device,autoConnect: true, timeout: Duration(seconds: 3)).listen((s) {
-      if (s == BluetoothDeviceState.connected) {
-        print("Connectado a ${device.name}");
-        setState(() {
-          _msgStatus = "Conectado à ${device.name}";
-        });
-        _discoverServices(device);
-      }
-    });
+    //scanSubscription.cancel();
+    try {
+      FlutterBlue.instance.connect(device).listen((s) {
+        if (s == BluetoothDeviceState.connected) {
+          print("Connectado a ${device.name}");
+          setState(() {
+            _msgStatus = "Conectado à ${device.name}";
+          });
+          _discoverServices(device);
+        }
+
+        print("Matheus:  $s");
+      }, onDone: () {
+        print("onDone");
+      }, onError: (d) {
+        print("onError " + d.toString());
+      });
+    } catch (error) {
+      print("MATHEUS: ERRO: " + error.toString());
+    }
   }
 
   _discoverServices(BluetoothDevice device) async {

@@ -92,7 +92,7 @@ class _MyHomePageState extends State<TerminalPage> {
   }
 
   _sendCommandBt() {
-    device.writeCharacteristic(services[2].characteristics[0], (_controllerSend.text + "\r\n").codeUnits);
+    device.writeCharacteristic(characteristicTransparentUARTTX, (_controllerSend.text + "\r\n").codeUnits);
 
     setState(() {
       listTerminal.add("> " +_controllerSend.text);
@@ -144,10 +144,10 @@ class _MyHomePageState extends State<TerminalPage> {
   }
 
   _onDataReceived() {
-    device.readCharacteristic(services[2].characteristics[1]).then((dataReceived){
-      print(String.fromCharCodes(dataReceived));
-      _onDataReceived();
-    });
+//    device.readCharacteristic(services[2].characteristics[1]).then((dataReceived){
+//      print(String.fromCharCodes(dataReceived));
+//      _onDataReceived();
+//    });
   }
 
   void _getCharacteristics() {
@@ -161,7 +161,6 @@ class _MyHomePageState extends State<TerminalPage> {
             device.onValueChanged(characteristic).listen((value){
               print(String.fromCharCodes(value));
               setState(() {
-
                 listTerminal.add("< " +String.fromCharCodes(value));
               });
             });
