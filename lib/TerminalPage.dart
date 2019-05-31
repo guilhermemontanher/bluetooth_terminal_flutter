@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 
+import 'model/Command.dart';
+
 class TerminalPage extends StatefulWidget {
   final BluetoothDevice device;
   final List<BluetoothService> services;
@@ -13,13 +15,17 @@ class TerminalPage extends StatefulWidget {
 
 class _MyHomePageState extends State<TerminalPage> {
   static Guid UUID_SERVICE = Guid("0000ABF0-0000-1000-8000-00805F9B34FB");
-  static Guid UUID_CHARACTERIST_RX = Guid("0000ABF2-0000-1000-8000-00805F9B34FB");
-  static Guid UUID_CHARACTERIST_TX = Guid("0000ABF1-0000-1000-8000-00805F9B34FB");
+  static Guid UUID_CHARACTERIST_RX =
+      Guid("0000ABF2-0000-1000-8000-00805F9B34FB");
+  static Guid UUID_CHARACTERIST_TX =
+      Guid("0000ABF1-0000-1000-8000-00805F9B34FB");
   static Guid UUID_CCC = Guid("00002902-0000-1000-8000-00805F9B34FB");
+
+  List<int> bufferBT = List<int>();
 
   BluetoothService gattService;
 
-  List<String> listTerminal = List<String>();
+  List<Command> listTerminal = List<Command>();
 
   final BluetoothDevice device;
   final List<BluetoothService> services;
@@ -29,12 +35,10 @@ class _MyHomePageState extends State<TerminalPage> {
   ScrollController _scrollController = new ScrollController();
   TextEditingController _controllerSend = TextEditingController();
 
-
-
-  _MyHomePageState(this.device, this.services){
+  _MyHomePageState(this.device, this.services) {
     _getCharacteristics();
     FlutterBlue.instance.onStateChanged().listen((state) {
-      switch(state){
+      switch (state) {
         case BluetoothState.off:
           print("Bluetooth OFF");
           break;
@@ -58,12 +62,10 @@ class _MyHomePageState extends State<TerminalPage> {
           break;
       }
     });
-    _onDataReceived();
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         title: Text("${device.name} - ${device.id.id}"),
@@ -77,7 +79,9 @@ class _MyHomePageState extends State<TerminalPage> {
             padding: const EdgeInsets.only(left: 8, right: 75, bottom: 14),
             child: TextField(
               controller: _controllerSend,
-              decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(50))),
+              decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(50))),
             ),
           ),
         ],
@@ -92,49 +96,49 @@ class _MyHomePageState extends State<TerminalPage> {
   }
 
   _sendCommandBt() {
-    device.writeCharacteristic(characteristicTransparentUARTTX, (_controllerSend.text + "\r\n").codeUnits);
+    bufferBT.clear();
+    device.writeCharacteristic(characteristicTransparentUARTTX,
+        (_controllerSend.text.replaceAll("\r\n", "") + "\r\n").codeUnits);
 
     setState(() {
-      listTerminal.add("> " +_controllerSend.text);
+      listTerminal
+          .add(Command(_controllerSend.text.replaceAll("\r\n", "") + "\r\n", CommandType.Send));
       _controllerSend.text = "";
-      _scrollController.animateTo(
-        0.0,
-        curve: Curves.easeOut,
-        duration: const Duration(milliseconds: 100),
-      );
     });
+
+    _scrollToBottom();
   }
 
   Widget _getListView() {
     return Padding(
-      padding: const EdgeInsets.only(left: 32, right: 32),
+      padding: const EdgeInsets.all(8),
       child: ListView.builder(
-        controller: _scrollController ,
-        reverse: true,
+        controller: _scrollController,
         itemCount: listTerminal.length,
         itemBuilder: (BuildContext ctxt, int index) {
           return InkWell(
-            child: Card(
-              margin: EdgeInsets.all(8.0),
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        children: <Widget>[
-                          Text(
-                            listTerminal[index],
-                            style: TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
+            onTap: () {
+              String text = listTerminal[index].command;
+              _controllerSend.text = text;
+            },
+            child: Padding(
+              padding: EdgeInsets.all(4),
+              child: Row(
+                children: <Widget>[
+                  _spaceBefore(index),
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.black12,
+                      borderRadius: BorderRadius.all(Radius.circular(10)),
                     ),
-                    Text("- - -"),
-                  ],
-                ),
+                    child: Text(
+                      listTerminal[index].command.replaceAll("\r\n", ""),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -143,43 +147,51 @@ class _MyHomePageState extends State<TerminalPage> {
     );
   }
 
-  _onDataReceived() {
-//    device.readCharacteristic(services[2].characteristics[1]).then((dataReceived){
-//      print(String.fromCharCodes(dataReceived));
-//      _onDataReceived();
-//    });
-  }
-
   void _getCharacteristics() {
-    for(BluetoothService service in services){
-      if(service.uuid == UUID_SERVICE){
+    for (BluetoothService service in services) {
+      if (service.uuid == UUID_SERVICE) {
         gattService = service;
-        for(BluetoothCharacteristic characteristic in service.characteristics){
-          if(characteristic.uuid == UUID_CHARACTERIST_RX){
+        for (BluetoothCharacteristic characteristic
+            in service.characteristics) {
+          if (characteristic.uuid == UUID_CHARACTERIST_RX) {
             characteristicTransparentUARTRX = characteristic;
             device.setNotifyValue(characteristic, true);
-            device.onValueChanged(characteristic).listen((value){
-              print(String.fromCharCodes(value));
-              setState(() {
-                listTerminal.add("< " +String.fromCharCodes(value));
-              });
+            device.onValueChanged(characteristic).listen((value) {
+              String dataStr = String.fromCharCodes(value);
+              print(dataStr);
+              for(int x in value){
+                bufferBT.add(x);
+              }
+
+              if (dataStr.contains("\r\n")) {
+                setState(() {
+                  listTerminal.add(Command(
+                      String.fromCharCodes(bufferBT), CommandType.Receive));
+                });
+                _scrollToBottom();
+              }
             });
-
-//            BluetoothDescriptor descriptor;
-//            for(BluetoothDescriptor descrip in characteristic.descriptors){
-//              if(descriptor.uuid == descrip.uuid){
-//                descrip.value = BluetoothDescriptor.
-//              }
-//            }
-
-
-          } else if (characteristic.uuid == UUID_CHARACTERIST_TX){
+          } else if (characteristic.uuid == UUID_CHARACTERIST_TX) {
             characteristicTransparentUARTTX = characteristic;
           }
         }
-
       }
     }
+  }
 
+  _scrollToBottom() {
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      curve: Curves.easeOut,
+      duration: const Duration(milliseconds: 100),
+    );
+  }
+
+  _spaceBefore(int index) {
+    if(listTerminal[index].type == CommandType.Send){
+      return Expanded(child: Container(),);
+    } else {
+      return Container();
+    }
   }
 }
