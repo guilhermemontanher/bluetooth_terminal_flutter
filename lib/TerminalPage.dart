@@ -95,7 +95,7 @@ class _MyHomePageState extends State<TerminalPage> {
     device.writeCharacteristic(services[2].characteristics[0], (_controllerSend.text + "\r\n").codeUnits);
 
     setState(() {
-      listTerminal.add(_controllerSend.text);
+      listTerminal.add("> " +_controllerSend.text);
       _controllerSend.text = "";
       _scrollController.animateTo(
         0.0,
@@ -162,7 +162,7 @@ class _MyHomePageState extends State<TerminalPage> {
               print(String.fromCharCodes(value));
               setState(() {
 
-                listTerminal.add(String.fromCharCodes(value));
+                listTerminal.add("< " +String.fromCharCodes(value));
               });
             });
 

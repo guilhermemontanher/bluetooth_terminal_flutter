@@ -36,7 +36,21 @@ class _MyHomePageState extends State<MyHomePage> {
   var _msgStatus = "";
 
   @override
+  void initState() {
+    _scanBLEDevices();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+      ),
+      body: !_connecting ? _listDeviceBluetooth() : _viewConnecting(),
+    );
+  }
+
+  void _scanBLEDevices() {
     FlutterBlue flutterBlue = FlutterBlue.instance;
     scanSubscription = flutterBlue
         .scan(
@@ -63,13 +77,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
       setState(() {});
     });
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: !_connecting ? _listDeviceBluetooth() : _viewConnecting(),
-    );
   }
 
   _listDeviceBluetooth() {
