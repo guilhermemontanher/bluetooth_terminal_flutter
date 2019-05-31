@@ -1,18 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 
+import 'TerminalPage.dart';
+
 void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        primarySwatch: Colors.indigo,
+      ),
+      home: MyHomePage(
+        title: 'BLE Terminal Flutter',
+      ),
+    );
+  }
+}
 
-  var scanSubscription;
+class MyHomePage extends StatefulWidget {
+  MyHomePage({Key key, this.title}) : super(key: key);
+  final String title;
+
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
   List<ScanResult> devices = List<ScanResult>();
+  var scanSubscription;
+
+  var _connecting = false;
+  var _msgStatus = "";
 
   @override
   Widget build(BuildContext context) {
     FlutterBlue flutterBlue = FlutterBlue.instance;
-    scanSubscription = flutterBlue.scan().listen((scanResult) {
+    scanSubscription = flutterBlue
+        .scan(
+      scanMode: ScanMode.balanced,
+      timeout: Duration(seconds: 5),
+    )
+        .listen((scanResult) {
       bool achou = false;
       var i;
       for (i = 0; i < devices.length; i++) {
@@ -28,138 +59,152 @@ class MyApp extends StatelessWidget {
         devices.add(scanResult);
       }
 
-      for (ScanResult dev in devices) {
-        print(
-            "Device ${dev.device.name} | MAC ${dev.device.id.id} | Type ${dev.device.type} | Rssi ${dev.rssi}");
+      devices.sort((a, b) => b.rssi.compareTo(a.rssi));
 
-        if(dev.device.id.id == "24:6F:28:D4:63:0A" || dev.device.id.id == "643F3BFC-9C79-F940-8DB1-4CEF3381E7C1"){
-          scanSubscription.cancel();
-          flutterBlue.connect(dev.device).listen((s) {
-            if(s == BluetoothDeviceState.connected) {
-              print("Connectado a ${dev.device.name}");
-              _discoverServices(dev.device);
-            }
-          });
-        }
-      }
+      setState(() {});
     });
 
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      body: !_connecting ? _listDeviceBluetooth() : _viewConnecting(),
     );
   }
 
-  _discoverServices(BluetoothDevice device) async{
+  _listDeviceBluetooth() {
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            "Selecione o dispositivo",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        Expanded(
+          child: getListView(),
+        ),
+      ],
+    );
+  }
+
+  _viewConnecting() {
+    return Center(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: CircularProgressIndicator(),
+          ),
+          Text(
+            _msgStatus,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget getListView() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 32, right: 32),
+      child: ListView.builder(
+        itemCount: devices.length,
+        itemBuilder: (BuildContext ctxt, int index) {
+          return InkWell(
+            onTap: () => _connectBLE(devices[index].device),
+            child: Card(
+              margin: EdgeInsets.all(8.0),
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Icon(Icons.bluetooth),
+                    Expanded(
+                      child: Column(
+                        children: <Widget>[
+                          Text(
+                            devices[index].device.name != ""
+                                ? devices[index].device.name
+                                : "Unknown",
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            devices[index].device.id.id,
+                            style: TextStyle(
+                                color: Colors.blueAccent,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text("RSSI ${devices[index].rssi}"),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  _connectBLE(BluetoothDevice device) {
+    setState(() {
+      _connecting = true;
+      _msgStatus = "Conectando...";
+    });
+    scanSubscription.cancel();
+    FlutterBlue.instance.connect(device,autoConnect: true, timeout: Duration(seconds: 3)).listen((s) {
+      if (s == BluetoothDeviceState.connected) {
+        print("Connectado a ${device.name}");
+        setState(() {
+          _msgStatus = "Conectado à ${device.name}";
+        });
+        _discoverServices(device);
+      }
+    });
+  }
+
+  _discoverServices(BluetoothDevice device) async {
+    setState(() {
+      _msgStatus = "Obtendo serviço...";
+    });
+    await Future.delayed(Duration(seconds: 1));
+
     List<BluetoothService> services = await device.discoverServices();
     services.forEach((service) {
       print("UUID - ${service.uuid}");
       print("DeviceIdentifier - ${service.deviceId.id}");
       print("Primary - ${service.isPrimary}");
       print("Characteristics");
-      service.characteristics.forEach((characteristic){
+      service.characteristics.forEach((characteristic) {
+        print("    ${characteristic.uuid}");
+        print("    ${characteristic.uuid}");
         print("    ${characteristic.uuid}");
       });
 
       print("IncludedServices - ${service.includedServices.toString()}");
-
     });
-  }
-}
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => TerminalPage(device, services)),
     );
+
+    setState(() {
+      _connecting = false;
+    });
   }
 }
