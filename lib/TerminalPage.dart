@@ -101,8 +101,9 @@ class _MyHomePageState extends State<TerminalPage> {
         (_controllerSend.text.replaceAll("\r\n", "") + "\r\n").codeUnits);
 
     setState(() {
-      listTerminal
-          .add(Command(_controllerSend.text.replaceAll("\r\n", "") + "\r\n", CommandType.Send));
+      listTerminal.add(Command(
+          _controllerSend.text.replaceAll("\r\n", "") + "\r\n",
+          CommandType.Send));
       _controllerSend.text = "";
     });
 
@@ -127,6 +128,7 @@ class _MyHomePageState extends State<TerminalPage> {
                 children: <Widget>[
                   _spaceBefore(index),
                   Container(
+                    width: 250,
                     padding: EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.black12,
@@ -159,7 +161,7 @@ class _MyHomePageState extends State<TerminalPage> {
             device.onValueChanged(characteristic).listen((value) {
               String dataStr = String.fromCharCodes(value);
               print(dataStr);
-              for(int x in value){
+              for (int x in value) {
                 bufferBT.add(x);
               }
 
@@ -188,8 +190,10 @@ class _MyHomePageState extends State<TerminalPage> {
   }
 
   _spaceBefore(int index) {
-    if(listTerminal[index].type == CommandType.Send){
-      return Expanded(child: Container(),);
+    if (listTerminal[index].type == CommandType.Send) {
+      return Expanded(
+        child: Container(),
+      );
     } else {
       return Container();
     }

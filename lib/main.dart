@@ -88,7 +88,7 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Text(
             "Selecione o dispositivo",
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
