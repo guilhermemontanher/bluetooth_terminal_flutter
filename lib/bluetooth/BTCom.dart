@@ -1,3 +1,5 @@
+import 'package:flutter_blue/flutter_blue.dart';
+
 abstract class BTComService {
   static final String TAG_CONNECTED = "c onnected",
       TAG_CONNECTING = "connecting",
@@ -18,11 +20,11 @@ abstract class BTComService {
   OnReadRSSIListener onReadRSSIListener;
   bool _disconnect = false;
 
-  connectPeripheral(String address);
-  transmitData(String data);
-  disconnect();
-  bool isconnected();
-  reset();
+  void connect(BluetoothDevice device);
+  void transmitData(String data);
+  void disconnect();
+  bool isConnected();
+  void reset();
 
   List<int> hexStringToByteArray(String s){
 //    var len = s. length;
@@ -42,8 +44,8 @@ abstract class OnConnectedListener {
   void onConnected();
 }
 
-abstract class OnConnectingListener {
-  void onConnecting();
+class OnConnectingListener {
+  void onConnecting(){}
 }
 
 abstract class OnDisconnectedListener {

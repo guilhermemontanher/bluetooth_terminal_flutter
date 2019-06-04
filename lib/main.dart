@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 
 import 'TerminalPage.dart';
+import 'bluetooth/BLEEsp32.dart';
+import 'bluetooth/BTCom.dart';
 
 void main() => runApp(MyApp());
 
@@ -9,9 +11,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
       theme: ThemeData(
-        primarySwatch: Colors.indigo,
+        primarySwatch: Colors.blueGrey,
       ),
       home: MyHomePage(
         title: 'BLE Terminal Flutter',
@@ -32,8 +35,11 @@ class _MyHomePageState extends State<MyHomePage> {
   List<ScanResult> devices = List<ScanResult>();
   var scanSubscription;
 
+  var _scanning = false;
   var _connecting = false;
   var _msgStatus = "";
+
+  BLEEsp32 bluetoothManager = BLEEsp32();
 
   @override
   void initState() {
@@ -45,6 +51,12 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
+        actions: <Widget>[
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: _scanBLEDevices,
+          ),
+        ],
       ),
       body: !_connecting ? _listDeviceBluetooth() : _viewConnecting(),
     );
@@ -67,31 +79,30 @@ class _MyHomePageState extends State<MyHomePage> {
           break; // 83246F61-BB41-3E47-15BE-1B5184C7AFB8
         }
       }
-
       if (achou) {
         devices[i] = scanResult;
       } else {
-        devices.add(scanResult);
+        if (scanResult.advertisementData.connectable) devices.add(scanResult);
       }
 
       devices.sort((a, b) => b.rssi.compareTo(a.rssi));
 
-      setState(() {});
+      setState(() {
+        _scanning = true;
+      });
+    }, onDone: () {
+      setState(() {
+        _scanning = false;
+      });
     });
   }
 
   _listDeviceBluetooth() {
     return Column(
       children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            "Selecione o dispositivo",
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+        Opacity(
+          opacity: _scanning ? 1.0 : 0.0,
+          child: LinearProgressIndicator(),
         ),
         Expanded(
           child: getListView(),
@@ -123,59 +134,62 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget getListView() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 32, right: 32),
-      child: ListView.builder(
-        itemCount: devices.length,
-        itemBuilder: (BuildContext ctxt, int index) {
-          return InkWell(
-            onTap: () => _connectBLE(devices[index].device),
-            child: Card(
-              margin: EdgeInsets.all(8.0),
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Icon(Icons.bluetooth),
-                    Expanded(
-                      child: Column(
-                        children: <Widget>[
-                          Text(
-                            devices[index].device.name != ""
-                                ? devices[index].device.name
-                                : "Unknown",
-                            style: TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            devices[index].device.id.id,
-                            style: TextStyle(
-                                color: Colors.blueAccent,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ],
+    return ListView.separated(
+      itemCount: devices.length,
+      separatorBuilder: (context, index) => Divider(
+            color: Colors.black87,
+          ),
+      itemBuilder: (BuildContext ctxt, int index) {
+        return InkWell(
+          onTap: () => _connectBLE(devices[index].device),
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(Icons.bluetooth),
+                Expanded(
+                  child: Column(
+                    children: <Widget>[
+                      Text(
+                        devices[index].device.name != ""
+                            ? devices[index].device.name
+                            : "Unknown",
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
                       ),
-                    ),
-                    Text("RSSI ${devices[index].rssi}"),
-                  ],
+                      Text(
+                        devices[index].device.id.id,
+                        style: TextStyle(
+                            color: Colors.blueAccent,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                Text("RSSI ${devices[index].rssi}"),
+              ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
   _connectBLE(BluetoothDevice device) {
-    print("**********************");
     setState(() {
       _connecting = true;
       _msgStatus = "Conectando...";
     });
     //scanSubscription.cancel();
     try {
+
+      bluetoothManager.connect(device);
+
+      OnConnectingListener connectingListeners = OnConnectingListener();
+      connectingListeners.onConnecting();
+
+      bluetoothManager.connect(device);
       FlutterBlue.instance.connect(device).listen((s) {
         if (s == BluetoothDeviceState.connected) {
           print("Connectado a ${device.name}");
@@ -188,11 +202,20 @@ class _MyHomePageState extends State<MyHomePage> {
         print("Matheus:  $s");
       }, onDone: () {
         print("onDone");
+        setState(() {
+          _connecting = false;
+        });
       }, onError: (d) {
         print("onError " + d.toString());
+        setState(() {
+          _connecting = false;
+        });
       });
     } catch (error) {
       print("MATHEUS: ERRO: " + error.toString());
+      setState(() {
+        _connecting = false;
+      });
     }
   }
 
