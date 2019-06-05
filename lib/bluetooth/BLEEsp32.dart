@@ -70,7 +70,7 @@ class BLEEsp32 extends BTCom {
     List<ScanResult> devices = List<ScanResult>();
     bool found = false;
     FlutterBlue.instance
-        .scan(scanMode: ScanMode.balanced, timeout: Duration(seconds: 15))
+        .scan(scanMode: ScanMode.balanced, timeout: Duration(seconds: 10))
         .listen((scanResult) {
       scanning = true;
       if (scanResult.device.id.id == address) {

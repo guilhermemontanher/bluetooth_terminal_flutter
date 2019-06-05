@@ -145,7 +145,9 @@ class _TerminalPageState extends State<TerminalPage> {
     );
   }
 
+  bool pop(BuildContext context) => Navigator.pop(context);
+
   _closeTerminal(){
-    Navigator.pop(context);
+    pop(context);
   }
 }
