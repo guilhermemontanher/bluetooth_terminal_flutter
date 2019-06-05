@@ -39,7 +39,7 @@ class BLEEsp32 extends BTCom {
     print("$TAG | CONNECTING");
     if (onConnecting != null) onConnecting();
     bluetoothStreamConnection =
-        FlutterBlue.instance.connect(device).listen((s) {
+        FlutterBlue.instance.connect(device,autoConnect: false).listen((s) {
       switch (s) {
         case BluetoothDeviceState.connecting:
           //print("$TAG | CONNECTING");

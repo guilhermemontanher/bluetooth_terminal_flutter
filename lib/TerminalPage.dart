@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_blue/flutter_blue.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 import 'bluetooth/BLEEsp32.dart';
 import 'model/Command.dart';
@@ -10,10 +10,10 @@ class TerminalPage extends StatefulWidget {
   const TerminalPage(this.bluetoothManager);
 
   @override
-  _MyHomePageState createState() => _MyHomePageState(bluetoothManager);
+  _TerminalPageState createState() => _TerminalPageState(bluetoothManager);
 }
 
-class _MyHomePageState extends State<TerminalPage> {
+class _TerminalPageState extends State<TerminalPage> {
   StringBuffer bufferBT = StringBuffer();
 
   List<Command> listTerminal = List<Command>();
@@ -23,7 +23,7 @@ class _MyHomePageState extends State<TerminalPage> {
   ScrollController _scrollController = new ScrollController();
   TextEditingController _controllerSend = TextEditingController();
 
-  _MyHomePageState(this.bluetoothManager) {
+  _TerminalPageState(this.bluetoothManager) {
     bluetoothManager.onDataReceived = (data) {
       bufferBT.write(data);
 
@@ -33,6 +33,18 @@ class _MyHomePageState extends State<TerminalPage> {
         });
         _scrollToBottom();
       }
+    };
+
+    bluetoothManager.onLostConnection = (){
+      Fluttertoast.showToast(
+          msg: "Lost Connection",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          timeInSecForIos: 1,
+          backgroundColor: Colors.black54,
+          textColor: Colors.white,
+          fontSize: 16.0);
+      _closeTerminal();
     };
   }
 
@@ -131,5 +143,9 @@ class _MyHomePageState extends State<TerminalPage> {
       curve: Curves.easeOut,
       duration: const Duration(milliseconds: 100),
     );
+  }
+
+  _closeTerminal(){
+    Navigator.pop(context);
   }
 }
