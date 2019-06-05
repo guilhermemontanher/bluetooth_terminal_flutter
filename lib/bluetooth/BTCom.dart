@@ -1,6 +1,6 @@
 import 'package:flutter_blue/flutter_blue.dart';
 
-abstract class BTComService {
+abstract class BTCom {
   static final String TAG_CONNECTED = "c onnected",
       TAG_CONNECTING = "connecting",
       TAG_DISCONNECTED = "disconnected",
@@ -10,66 +10,34 @@ abstract class BTComService {
 
   bool isNotFound = false;
 
-  OnConnectedListener onConnectedListener;
-  OnConnectingListener onConnectingListener;
-  OnDisconnectedListener onDisconnectedListener;
-  OnLostConnectionListener onLostConnectionListener;
-  OnFailConnectionListener onFailConnectionListener;
-  OnDataTransmitedListener onDataTransmitedListener;
+  OnConnected onConnected;
+  OnConnecting onConnecting;
+  OnDisconnected onDisconnected;
+  OnLostConnection onLostConnection;
+  OnFailConnection onFailConnection;
   OnDataReceived onDataReceived;
-  OnReadRSSIListener onReadRSSIListener;
+  OnReadRSSI onReadRSSI;
+  OnDataTransmited onDataTransmited;
+
   bool _disconnect = false;
+  bool scanning = false;
 
   void connect(BluetoothDevice device);
+
+  void connectByAddress(String address);
+
   void transmitData(String data);
+
   void disconnect();
+
   bool isConnected();
-  void reset();
-
-  List<int> hexStringToByteArray(String s){
-//    var len = s. length;
-//
-//    List<int> data = List<int>();
-//
-//    for(int i = 0; i < len; i+=2){
-//      data[i/2 as int] =
-//    }
-//
-//    return data;
-  }
-
 }
 
-abstract class OnConnectedListener {
-  void onConnected();
-}
-
-class OnConnectingListener {
-  void onConnecting(){}
-}
-
-abstract class OnDisconnectedListener {
-  void onDisconnected();
-}
-
-abstract class OnLostConnectionListener {
-  void onLostConnection();
-}
-
-abstract class OnFailConnectionListener {
-  void onFailConnection();
-}
-
-abstract class OnReadRSSIListener {
-  void onReadRSSI(String rssi);
-}
-
-abstract class OnDataReceived {
-  void onDataReceived(String data);
-}
-
-abstract class OnDataTransmitedListener {
-  void onDataTransmitedSucess();
-
-  void onDataTransmitedError();
-}
+typedef OnConnected = void Function();
+typedef OnConnecting = void Function();
+typedef OnDisconnected = void Function();
+typedef OnLostConnection = void Function();
+typedef OnFailConnection = void Function();
+typedef OnReadRSSI = void Function(String rssi);
+typedef OnDataReceived = void Function(String data);
+typedef OnDataTransmited = void Function(bool success);

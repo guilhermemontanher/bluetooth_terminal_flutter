@@ -3,7 +3,6 @@ import 'package:flutter_blue/flutter_blue.dart';
 
 import 'TerminalPage.dart';
 import 'bluetooth/BLEEsp32.dart';
-import 'bluetooth/BTCom.dart';
 
 void main() => runApp(MyApp());
 
@@ -14,7 +13,10 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
       theme: ThemeData(
-        primarySwatch: Colors.blueGrey,
+        primarySwatch: Colors.blue,
+        brightness: Brightness.dark,
+        accentColor: Colors.blueAccent,
+        accentColorBrightness: Brightness.light,
       ),
       home: MyHomePage(
         title: 'BLE Terminal Flutter',
@@ -177,42 +179,31 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   _connectBLE(BluetoothDevice device) {
-    setState(() {
-      _connecting = true;
-      _msgStatus = "Conectando...";
-    });
-    //scanSubscription.cancel();
     try {
+      bluetoothManager.onConnected = () {
+        print("Connectado a ${device.name}");
+        setState(() {
+          _msgStatus = "Conectado à ${device.name}";
+        });
+        _discoverServices(device);
+      };
 
-      bluetoothManager.connect(device);
-
-      OnConnectingListener connectingListeners = OnConnectingListener();
-      connectingListeners.onConnecting();
-
-      bluetoothManager.connect(device);
-      FlutterBlue.instance.connect(device).listen((s) {
-        if (s == BluetoothDeviceState.connected) {
-          print("Connectado a ${device.name}");
-          setState(() {
-            _msgStatus = "Conectado à ${device.name}";
-          });
-          _discoverServices(device);
-        }
-
-        print("Matheus:  $s");
-      }, onDone: () {
-        print("onDone");
+      bluetoothManager.onConnecting = () {
+        setState(() {
+          _connecting = true;
+          _msgStatus = "Conectando...";
+        });
+      };
+      bluetoothManager.onFailConnection = () {
         setState(() {
           _connecting = false;
         });
-      }, onError: (d) {
-        print("onError " + d.toString());
-        setState(() {
-          _connecting = false;
-        });
-      });
+      };
+
+      //bluetoothManager.connect(device);
+      bluetoothManager.connectByAddress(device.id.id);
     } catch (error) {
-      print("MATHEUS: ERRO: " + error.toString());
+      print("ERRO: " + error.toString());
       setState(() {
         _connecting = false;
       });
@@ -242,7 +233,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => TerminalPage(device, services)),
+      MaterialPageRoute(builder: (context) => TerminalPage(bluetoothManager)),
     );
 
     setState(() {

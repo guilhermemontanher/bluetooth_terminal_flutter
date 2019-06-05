@@ -1,74 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 
+import 'bluetooth/BLEEsp32.dart';
 import 'model/Command.dart';
 
 class TerminalPage extends StatefulWidget {
-  final BluetoothDevice device;
-  final List<BluetoothService> services;
+  final BLEEsp32 bluetoothManager;
 
-  const TerminalPage(this.device, this.services);
+  const TerminalPage(this.bluetoothManager);
 
   @override
-  _MyHomePageState createState() => _MyHomePageState(device, services);
+  _MyHomePageState createState() => _MyHomePageState(bluetoothManager);
 }
 
 class _MyHomePageState extends State<TerminalPage> {
-  static Guid UUID_SERVICE = Guid("0000ABF0-0000-1000-8000-00805F9B34FB");
-  static Guid UUID_CHARACTERIST_RX =
-      Guid("0000ABF2-0000-1000-8000-00805F9B34FB");
-  static Guid UUID_CHARACTERIST_TX =
-      Guid("0000ABF1-0000-1000-8000-00805F9B34FB");
-  static Guid UUID_CCC = Guid("00002902-0000-1000-8000-00805F9B34FB");
-
-  List<int> bufferBT = List<int>();
-
-  BluetoothService gattService;
+  StringBuffer bufferBT = StringBuffer();
 
   List<Command> listTerminal = List<Command>();
 
-  final BluetoothDevice device;
-  final List<BluetoothService> services;
-  BluetoothCharacteristic characteristicTransparentUARTTX;
-  BluetoothCharacteristic characteristicTransparentUARTRX;
+  final BLEEsp32 bluetoothManager;
 
   ScrollController _scrollController = new ScrollController();
   TextEditingController _controllerSend = TextEditingController();
 
-  _MyHomePageState(this.device, this.services) {
-    _getCharacteristics();
-    FlutterBlue.instance.onStateChanged().listen((state) {
-      switch (state) {
-        case BluetoothState.off:
-          print("Bluetooth OFF");
-          break;
-        case BluetoothState.unknown:
-          print("Bluetooth unknown");
-          break;
-        case BluetoothState.unavailable:
-          print("Bluetooth unavailable");
-          break;
-        case BluetoothState.unauthorized:
-          print("Bluetooth unauthorized");
-          break;
-        case BluetoothState.turningOn:
-          print("Bluetooth turningOn");
-          break;
-        case BluetoothState.on:
-          print("Bluetooth on");
-          break;
-        case BluetoothState.turningOff:
-          print("Bluetooth turningOff");
-          break;
+  _MyHomePageState(this.bluetoothManager) {
+    bluetoothManager.onDataReceived = (data) {
+      bufferBT.write(data);
+
+      if (data.contains("\r\n")) {
+        setState(() {
+          listTerminal.add(Command(bufferBT.toString(), CommandType.Receive));
+        });
+        _scrollToBottom();
       }
-    });
+    };
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("${device.name} - ${device.id.id}"),
+        title: Text(
+            "${bluetoothManager.device.name} - ${bluetoothManager.device.id.id}"),
       ),
       body: Column(
         children: <Widget>[
@@ -97,8 +70,9 @@ class _MyHomePageState extends State<TerminalPage> {
 
   _sendCommandBt() {
     bufferBT.clear();
-    device.writeCharacteristic(characteristicTransparentUARTTX,
-        (_controllerSend.text.replaceAll("\r\n", "") + "\r\n").codeUnits);
+
+    bluetoothManager
+        .transmitData(_controllerSend.text.replaceAll("\r\n", "") + "\r\n");
 
     setState(() {
       listTerminal.add(Command(
@@ -125,8 +99,10 @@ class _MyHomePageState extends State<TerminalPage> {
             child: Padding(
               padding: EdgeInsets.all(4),
               child: Row(
+                mainAxisAlignment: listTerminal[index].type == CommandType.Send
+                    ? MainAxisAlignment.end
+                    : MainAxisAlignment.start,
                 children: <Widget>[
-                  _spaceBefore(index),
                   Container(
                     width: 250,
                     padding: EdgeInsets.all(16),
@@ -149,53 +125,11 @@ class _MyHomePageState extends State<TerminalPage> {
     );
   }
 
-  void _getCharacteristics() {
-    for (BluetoothService service in services) {
-      if (service.uuid == UUID_SERVICE) {
-        gattService = service;
-        for (BluetoothCharacteristic characteristic
-            in service.characteristics) {
-          if (characteristic.uuid == UUID_CHARACTERIST_RX) {
-            characteristicTransparentUARTRX = characteristic;
-            device.setNotifyValue(characteristic, true);
-            device.onValueChanged(characteristic).listen((value) {
-              String dataStr = String.fromCharCodes(value);
-              print(dataStr);
-              for (int x in value) {
-                bufferBT.add(x);
-              }
-
-              if (dataStr.contains("\r\n")) {
-                setState(() {
-                  listTerminal.add(Command(
-                      String.fromCharCodes(bufferBT), CommandType.Receive));
-                });
-                _scrollToBottom();
-              }
-            });
-          } else if (characteristic.uuid == UUID_CHARACTERIST_TX) {
-            characteristicTransparentUARTTX = characteristic;
-          }
-        }
-      }
-    }
-  }
-
   _scrollToBottom() {
     _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
+      _scrollController.position.maxScrollExtent + 99999,
       curve: Curves.easeOut,
       duration: const Duration(milliseconds: 100),
     );
-  }
-
-  _spaceBefore(int index) {
-    if (listTerminal[index].type == CommandType.Send) {
-      return Expanded(
-        child: Container(),
-      );
-    } else {
-      return Container();
-    }
   }
 }
