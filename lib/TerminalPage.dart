@@ -139,7 +139,7 @@ class _TerminalPageState extends State<TerminalPage> {
 
   _scrollToBottom() {
     _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent + 99999,
+      _scrollController.position.maxScrollExtent + 80,
       curve: Curves.easeOut,
       duration: const Duration(milliseconds: 100),
     );
